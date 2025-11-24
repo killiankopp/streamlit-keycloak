@@ -1,9 +1,6 @@
-from dataclasses import asdict
 from streamlit_keycloak import login
 import streamlit as st
 
-
-# On stocke keycloak dans la session Streamlit :
 if "keycloak" not in st.session_state:
     st.session_state.keycloak = login(
         url="https://keycloak.amazone.lan/",
@@ -19,7 +16,6 @@ if not keycloak.authenticated:
     st.warning("Utilisateur non authentifié")
     st.stop()
 
-# Si authentifié :
 user_info = keycloak.user_info
 access_token = keycloak.access_token
 refresh_token = keycloak.refresh_token
