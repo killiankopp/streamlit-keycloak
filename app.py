@@ -1,24 +1,63 @@
-from streamlit_keycloak import login
 import streamlit as st
+from authlib.integrations.requests_client import OAuth2Session
+import httpx
 
-if "keycloak" not in st.session_state:
-    st.session_state.keycloak = login(
-        url="https://keycloak.amazone.lan/",
-        realm="koden",
-        client_id="streamlit",
+# Configuration Keycloak
+KEYCLOAK_URL = "https://iam.karned.bzh/realms/Amazone"
+CLIENT_ID = "streamlit"
+REDIRECT_URI = "http://localhost:8501"
+SCOPE = "openid email profile"
+
+# Initialiser la session OAuth2 avec PKCE
+def get_oauth_client():
+    client = OAuth2Session(
+        CLIENT_ID,
+        scope=SCOPE,
+        redirect_uri=REDIRECT_URI,
     )
+    return client
 
-keycloak = st.session_state.keycloak
+# Générer l'URL d'autorisation
+def get_authorization_url():
+    client = get_oauth_client()
+    uri, state = client.create_authorization_url(KEYCLOAK_URL + "/protocol/openid-connect/auth")
+    return uri, state
 
-st.title("Bienvenue sur Streamlit")
+# Échanger le code contre un token
+def fetch_token(code):
+    client = get_oauth_client()
+    token = client.fetch_token(
+        KEYCLOAK_URL + "/protocol/openid-connect/token",
+        code=code,
+        grant_type="authorization_code",
+    )
+    return token
 
-if not keycloak.authenticated:
-    st.warning("Utilisateur non authentifié")
-    st.stop()
+# Vérifier si l'utilisateur est authentifié
+def is_authenticated():
+    return "token" in st.session_state
 
-user_info = keycloak.user_info
-access_token = keycloak.access_token
-refresh_token = keycloak.refresh_token
+# Interface Streamlit
+def main():
+    if not is_authenticated():
 
-st.write("Connecté en tant que :", user_info["preferred_username"])
-st.write("Token d'accès :", access_token)
+        uri, state = get_authorization_url()
+        st.session_state["oauth_state"] = state
+        st.markdown(f"[Se connecter]({uri})", unsafe_allow_html=True)
+
+        # Après redirection, récupérer le code
+        if "code" in st.query_params:
+            code = st.query_params["code"]
+            token = fetch_token(code)
+            st.session_state["token"] = token
+            st.query_params.clear()  # Nettoie les paramètres de l'URL
+            st.rerun()
+    else:
+        st.write("Vous êtes connecté !")
+        st.json(st.session_state["token"])
+        if st.button("Se déconnecter"):
+            del st.session_state["token"]
+            st.rerun()
+
+if __name__ == "__main__":
+    main()
