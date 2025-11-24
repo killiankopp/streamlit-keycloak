@@ -1,14 +1,17 @@
 import streamlit as st
 from streamlit_keycloak import login
 
-keycloak = login(
-    url="https://keycloak.amazone.lan",
-    realm="koden",
-    client_id="streamlit",
-)
+# On stocke keycloak dans la session Streamlit :
+if "keycloak" not in st.session_state:
+    st.session_state.keycloak = login(
+        url="https://keycloak.amazone.lan/",
+        realm="koden",
+        client_id="streamlit",
+    )
+
+keycloak = st.session_state.keycloak
 
 st.title("Bienvenue sur Streamlit")
-
 
 if not keycloak.authenticated:
     st.warning("Utilisateur non authentifié")
